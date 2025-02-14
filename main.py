@@ -1,18 +1,14 @@
-# main.py
 import logging
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from config import TELEGRAM_TOKEN, DEEPSEEK_API_KEY
-from deepseek_api import DeepSeek
 from db_handler import Database
 from cachetools import cached, TTLCache
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import sentry_sdk
-
-# Инициализация DeepSeek
-deepseek = DeepSeek(api_key=DEEPSEEK_API_KEY)
 
 # Инициализация Sentry (опционально)
 sentry_sdk.init(dsn=config.SENTRY_DSN, traces_sample_rate=1.0)
@@ -81,6 +77,11 @@ async def generate_pdf_report(analysis_result: str, investment_grade: int) -> By
 # Анализ через DeepSeek
 @cached(cache)
 async def deepseek_analysis(data: list) -> str:
+    url = "https://api.deepseek.com/v1/generate"  # Проверь точный URL
+    headers = {
+        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+        "Content-Type": "application/json"
+    }
     prompt = f"""
 Проведи инвестиционный анализ объекта недвижимости со следующими параметрами:
 Локация: {data[0]}
@@ -94,7 +95,18 @@ async def deepseek_analysis(data: list) -> str:
 3. Тренды района
 4. Риски инвестиций
     """
-    return deepseek.generate(prompt, max_tokens=1500)
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [{"role": "user", "content": prompt}]
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+    
+    if response.status_code == 200:
+        return response.json().get("choices", [{}])[0].get("message", {}).get("content", "Ошибка в анализе")
+    else:
+        logger.error(f"DeepSeek API Error {response.status_code}: {response.text}")
+        return "Ошибка при получении данных от DeepSeek"
 
 # Оценка инвестиционной привлекательности
 def calculate_investment_grade(analysis: str) -> int:
