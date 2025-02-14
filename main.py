@@ -8,12 +8,8 @@ from cachetools import cached, TTLCache
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-import sentry_sdk
 
-# Инициализация Sentry (опционально)
-sentry_sdk.init(dsn=config.SENTRY_DSN, traces_sample_rate=1.0)
-
-# Кэширование
+# Кэширование запросов (для уменьшения нагрузки)
 cache = TTLCache(maxsize=100, ttl=300)
 
 # Логирование
@@ -32,24 +28,24 @@ async def start(update: Update, context: CallbackContext):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
 
-# Обработка сообщений
+# Обработка сообщений от пользователя
 async def handle_message(update: Update, context: CallbackContext):
     try:
         data = update.message.text.split("|")
         if len(data) != 4:
-            await update.message.reply_text("Неверный формат данных. Пожалуйста, используйте формат: Локация|Площадь|Цена|Тип объекта")
+            await update.message.reply_text("Неверный формат данных. Используйте: Локация|Площадь|Цена|Тип объекта")
             return
-        
+
         analysis_result = await deepseek_analysis(data)
         investment_grade = calculate_investment_grade(analysis_result)
-        
+
         # Сохранение анализа в базу данных
         db.save_analysis(update.message.from_user.id, data, analysis_result)
-        
+
         # Генерация PDF-отчета
         pdf_buffer = await generate_pdf_report(analysis_result, investment_grade)
-        
-        # Отправка отчета пользователю
+
+        # Ответ пользователю
         response = f"""
 📊 Аналитический отчет:
 {analysis_result}
@@ -61,7 +57,7 @@ async def handle_message(update: Update, context: CallbackContext):
         await update.message.reply_document(document=pdf_buffer, filename="report.pdf")
     except Exception as e:
         logger.error(f"Error: {e}")
-        await update.message.reply_text("Произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте еще раз.")
+        await update.message.reply_text("Произошла ошибка при обработке запроса. Попробуйте еще раз.")
 
 # Генерация PDF-отчета
 async def generate_pdf_report(analysis_result: str, investment_grade: int) -> BytesIO:
@@ -74,14 +70,9 @@ async def generate_pdf_report(analysis_result: str, investment_grade: int) -> By
     buffer.seek(0)
     return buffer
 
-# Анализ через DeepSeek
+# Анализ через DeepSeek (через API)
 @cached(cache)
 async def deepseek_analysis(data: list) -> str:
-    url = "https://api.deepseek.com/v1/generate"  # Проверь точный URL
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json"
-    }
     prompt = f"""
 Проведи инвестиционный анализ объекта недвижимости со следующими параметрами:
 Локация: {data[0]}
@@ -95,18 +86,17 @@ async def deepseek_analysis(data: list) -> str:
 3. Тренды района
 4. Риски инвестиций
     """
-    payload = {
-        "model": "deepseek-chat",
-        "messages": [{"role": "user", "content": prompt}]
-    }
 
-    response = requests.post(url, json=payload, headers=headers)
-    
+    response = requests.post(
+        "https://api.deepseek.com/generate",
+        headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+        json={"prompt": prompt, "max_tokens": 1500}
+    )
+
     if response.status_code == 200:
-        return response.json().get("choices", [{}])[0].get("message", {}).get("content", "Ошибка в анализе")
+        return response.json().get("text", "Ошибка в анализе")
     else:
-        logger.error(f"DeepSeek API Error {response.status_code}: {response.text}")
-        return "Ошибка при получении данных от DeepSeek"
+        return "Ошибка при запросе к DeepSeek API"
 
 # Оценка инвестиционной привлекательности
 def calculate_investment_grade(analysis: str) -> int:

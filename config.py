@@ -7,4 +7,4 @@ DB_CONFIG = {
     "password": "xvst1h2",
     "database": "postgres"
 }
-SENTRY_DSN = "ВАШ_SENTRY_DSN"  # Опционально, для мониторинга ошибок
+#SENTRY_DSN = "ВАШ_SENTRY_DSN"  # Опционально, для мониторинга ошибок
