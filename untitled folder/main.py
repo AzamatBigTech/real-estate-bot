@@ -1,5 +1,5 @@
 import logging
-import os
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from config import TELEGRAM_TOKEN, DEEPSEEK_API_KEY
@@ -9,7 +9,7 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
-# Кэширование запросов
+# Кэширование запросов (для уменьшения нагрузки)
 cache = TTLCache(maxsize=100, ttl=300)
 
 # Логирование
@@ -74,17 +74,17 @@ async def generate_pdf_report(analysis_result: str, investment_grade: int) -> By
 @cached(cache)
 async def deepseek_analysis(data: list) -> str:
     prompt = f"""
-    Проведи инвестиционный анализ объекта недвижимости со следующими параметрами:
-    Локация: {data[0]}
-    Площадь: {data[1]} м²
-    Цена: {data[2]} руб
-    Тип: {data[3]}
+Проведи инвестиционный анализ объекта недвижимости со следующими параметрами:
+Локация: {data[0]}
+Площадь: {data[1]} м²
+Цена: {data[2]} руб
+Тип: {data[3]}
 
-    Проанализируй:
-    1. Рыночную стоимость
-    2. Арендный потенциал
-    3. Тренды района
-    4. Риски инвестиций
+Проанализируй:
+1. Рыночную стоимость
+2. Арендный потенциал
+3. Тренды района
+4. Риски инвестиций
     """
 
     response = requests.post(
@@ -105,17 +105,8 @@ def calculate_investment_grade(analysis: str) -> int:
 # Запуск бота
 if __name__ == "__main__":
     application = Application.builder().token(TELEGRAM_TOKEN).build()
-
+    
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    # Use webhooks for Render
-    PORT = int(os.environ.get("PORT", 5000))
-    WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
-
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        url_path=TELEGRAM_TOKEN,
-        webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}"
-    )
+    
+    application.run_polling()

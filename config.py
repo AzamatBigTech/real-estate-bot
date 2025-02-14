@@ -6,8 +6,8 @@ DB_CONFIG = {
     "port": 5432,
     "user": "postgres",
     "password": "xvst1h2",
-    "database": "postgres",
-    "sslmode": "require",  # Обязательно
+    "dbname": "postgres",
+    "sslmode": "require"  # Обязательно
 }
 #SENTRY_DSN = "ВАШ_SENTRY_DSN"  
 # Опционально, для мониторинга ошибок
