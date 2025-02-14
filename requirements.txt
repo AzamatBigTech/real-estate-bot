@@ -1,7 +1,6 @@
 python-telegram-bot
 pandas
 requests
-deepseek-api
 psycopg2
 cachetools
 reportlab
