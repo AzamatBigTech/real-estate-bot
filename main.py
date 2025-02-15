@@ -1,6 +1,7 @@
 import logging
 import os
-import requests  # Добавлено
+import sys
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from config import TELEGRAM_TOKEN, DEEPSEEK_API_KEY
@@ -16,6 +17,11 @@ cache = TTLCache(maxsize=100, ttl=300)
 # Логирование
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Проверка обязательных переменных окружения
+if not TELEGRAM_TOKEN or not DEEPSEEK_API_KEY:
+    logger.error("Не указаны TELEGRAM_TOKEN или DEEPSEEK_API_KEY в переменных окружения.")
+    sys.exit(1)
 
 # Инициализация базы данных
 db = Database()
@@ -117,11 +123,12 @@ if __name__ == "__main__":
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Use webhooks for Render
+    # Использование вебхуков на Render
     PORT = int(os.environ.get("PORT", 5000))
     WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 
     if WEBHOOK_URL:
+        logger.info(f"Запуск бота с вебхуками на порту {PORT}...")
         application.run_webhook(
             listen="0.0.0.0",
             port=PORT,
@@ -129,4 +136,5 @@ if __name__ == "__main__":
             webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}"
         )
     else:
+        logger.info("Запуск бота в режиме polling...")
         application.run_polling()
