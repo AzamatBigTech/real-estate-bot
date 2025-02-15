@@ -1,6 +1,6 @@
 # config.py
-TELEGRAM_TOKEN = "7869709666:AAEh57tVtQFWijeVTDu0DWw_x-HpbnhiXEM"
-DEEPSEEK_API_KEY = "sk-03a9ac0e7b50478a898a4fef81155565"
+TELEGRAM_TOKEN = "7869709666:AAHSMftufFg544hYwRGBrROWnUjAd8jAteA"
+DEEPSEEK_API_KEY = "sk-73ef4ce96403437c8c01676d8ceb47ce"
 DB_CONFIG = {
     "host": "aws-0-eu-central-1.pooler.supabase.com",
     "port": 6543,
