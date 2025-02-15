@@ -1,0 +1,6 @@
+python-telegram-bot[webhooks]
+pandas
+requests
+psycopg2
+cachetools
+reportlab
