@@ -39,15 +39,17 @@ async def start(update: Update, context: CallbackContext):
 async def handle_message(update: Update, context: CallbackContext):
     try:
         data = update.message.text.split("|")
+        
         if len(data) != 4:
             await update.message.reply_text("Неверный формат данных. Используйте: Локация|Площадь|Цена|Тип объекта")
             return
 
-        analysis_result = await deepseek_analysis(data)
+        # Анализ через API
+        analysis_result = await deepseek_analysis(tuple(data))  # Преобразование в кортеж
         investment_grade = calculate_investment_grade(analysis_result)
 
         # Сохранение анализа в базу данных
-        db.save_analysis(update.message.from_user.id, data, analysis_result)
+        db.save_analysis(update.message.from_user.id, "|".join(data), analysis_result)  # Преобразование списка в строку
 
         # Генерация PDF-отчета
         pdf_buffer = await generate_pdf_report(analysis_result, investment_grade)
@@ -71,15 +73,15 @@ async def generate_pdf_report(analysis_result: str, investment_grade: int) -> By
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     c.drawString(72, 750, "Аналитический отчет по недвижимости")
-    c.drawString(72, 730, analysis_result)
+    c.drawString(72, 730, str(analysis_result))  # Преобразование в строку
     c.drawString(72, 710, f"Оценка инвестиционной привлекательности: {investment_grade}/100")
     c.save()
     buffer.seek(0)
     return buffer
 
-# Анализ через DeepSeek (через API)
+# Анализ через DeepSeek API (кэширование запросов)
 @cached(cache)
-async def deepseek_analysis(data: list) -> str:
+async def deepseek_analysis(data: tuple) -> str:
     prompt = f"""
     Проведи инвестиционный анализ объекта недвижимости со следующими параметрами:
     Локация: {data[0]}
@@ -108,7 +110,6 @@ async def deepseek_analysis(data: list) -> str:
 
 # Оценка инвестиционной привлекательности
 def calculate_investment_grade(analysis: str) -> int:
-    # Пример более сложной логики оценки
     grade = len(analysis) // 10
     if "риск" in analysis.lower():
         grade -= 20
