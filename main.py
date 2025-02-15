@@ -1,5 +1,6 @@
 import logging
 import os
+import requests  # Добавлено
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from config import TELEGRAM_TOKEN, DEEPSEEK_API_KEY
@@ -96,11 +97,18 @@ async def deepseek_analysis(data: list) -> str:
     if response.status_code == 200:
         return response.json().get("text", "Ошибка в анализе")
     else:
+        logger.error(f"DeepSeek API Error: {response.status_code} - {response.text}")
         return "Ошибка при запросе к DeepSeek API"
 
 # Оценка инвестиционной привлекательности
 def calculate_investment_grade(analysis: str) -> int:
-    return min(100, len(analysis) // 10)
+    # Пример более сложной логики оценки
+    grade = len(analysis) // 10
+    if "риск" in analysis.lower():
+        grade -= 20
+    if "потенциал" in analysis.lower():
+        grade += 20
+    return min(100, max(0, grade))
 
 # Запуск бота
 if __name__ == "__main__":
@@ -113,9 +121,12 @@ if __name__ == "__main__":
     PORT = int(os.environ.get("PORT", 5000))
     WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        url_path=TELEGRAM_TOKEN,
-        webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}"
-    )
+    if WEBHOOK_URL:
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=TELEGRAM_TOKEN,
+            webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}"
+        )
+    else:
+        application.run_polling()
