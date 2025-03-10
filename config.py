@@ -11,3 +11,4 @@ DB_CONFIG = {
 }
 #SENTRY_DSN = "ВАШ_SENTRY_DSN"  
 # Опционально, для мониторинга ошибок
+# Aza
